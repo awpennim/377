@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/wait.h>
 
+typedef int bool;
 #define TRUE 1
 #define FALSE 0
 
@@ -25,6 +27,54 @@ char readChar() {
   char c = getchar();
   while (getchar() != '\n');
   return c;
+}
+
+void sequential(char* cmdTokens[], int count, int timeout){
+	int childProcessID;
+	int i;
+	for(i = 0; i < count; i++){
+		childProcessID = fork();
+
+		if(childProcessID == 0){ // if this is the child process
+ 			execvp(cmdTokens[0], cmdTokens);
+ 			
+ 			// code should only be reached if execvp fails
+			printf("Can't execute %s\n", cmdTokens[0]);
+    		exit(1);
+		}
+	
+		int status;
+		
+		if(timeout == 0){ // if there is no timeout, block on the child process to terminate
+			do
+			 waitpid(childProcessID, &status, 0);
+			while(!WIFEXITED(status) && !WIFSIGNALED(status));
+		}
+		else{
+			int time_remaining = timeout; // we know timeout does not equal 0
+			bool waiting = TRUE;
+			
+			while(waiting && time_remaining != 0) { 
+				sleep(1);
+				time_remaining = time_remaining - 1;
+				
+				if(waitpid(childProcessID, &status, WNOHANG) == 0) // if waitpid returns without reaping any child processes
+					waiting = TRUE;
+				else
+					waiting = !WIFEXITED(status); // we are "waiting", if the child process has not terminated
+				
+				if(waiting && time_remaining == 0){
+					kill(childProcessID, SIGKILL);
+					printf("%s timed out\n", cmdTokens[0]);
+					// will exit loop because (time_remaining != 0) == false
+				}
+			}
+		} 
+	}
+}
+
+void concurrent(char* cmdTokens[], int count, int timeouts){
+	
 }
 
 // main method - program entry point
@@ -59,30 +109,4 @@ int main() {
 	else
 		sequential(cmdTokens, count, timeout);
   }
-}
-
-void sequential(char* cmdTokens[], int count, int timeout){
-	int childProcessIDs[9]; // char value ranges from 0-9
-
-	int i;
-	for(i = 0; i < count; i++){
-		childProcessIDs[i] = fork();
-
-		if(childProcessIDs[i] == 0){ // if this is the child process
- 			execvp(cmdTokens[0], cmdTokens);
- 			
- 			// code should only be reached if execvp fails
-			printf("Can't execute %s\n", cmdTokens[0]);
-    		exit(1);
-		}
-		else{
-			// if sequential, block	
-		}
-	  
-		count--;
-	}
-}
-
-void concurrent(char* cmdTokens[], int count, int timeout){
-	
 }
