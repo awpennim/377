@@ -53,20 +53,36 @@ int main() {
       timeout = readChar() - '0';
     } while (timeout < 0 || timeout > 9);
     // end parsing code
-    
 
-    ////////////////////////////////////////////////////////
-    //                                                    //
-    // TODO: use cmdTokens, count, parallel, and timeout  //
-    // to implement the rest of closh                     //
-    //                                                    //
-    // /////////////////////////////////////////////////////
-
-    // just executes the given command once - REPLACE THIS CODE WITH YOUR OWN
-    execvp(cmdTokens[0], cmdTokens); // replaces the current process with the given program
-    printf("Can't execute %s\n", cmdTokens[0]); // only reached if running the program failed
-    exit(1);
-
+	if(parallel)
+		concurrent(cmdTokens, count, timeout);
+	else
+		sequential(cmdTokens, count, timeout);
   }
 }
 
+void sequential(char* cmdTokens[], int count, int timeout){
+	int childProcessIDs[9]; // char value ranges from 0-9
+
+	int i;
+	for(i = 0; i < count; i++){
+		childProcessIDs[i] = fork();
+
+		if(childProcessIDs[i] == 0){ // if this is the child process
+ 			execvp(cmdTokens[0], cmdTokens);
+ 			
+ 			// code should only be reached if execvp fails
+			printf("Can't execute %s\n", cmdTokens[0]);
+    		exit(1);
+		}
+		else{
+			// if sequential, block	
+		}
+	  
+		count--;
+	}
+}
+
+void concurrent(char* cmdTokens[], int count, int timeout){
+	
+}
