@@ -29,8 +29,8 @@ char readChar() {
   return c;
 }
 
-void sequential(char* cmdTokens[], int count, int timeout){
-	int childProcessID;
+void execCmdSequentially(char* cmdTokens[], int count, int timeout){
+	int childProcessID; // id of the child process we will fork and wait for
 	int i;
 	for(i = 0; i < count; i++){
 		childProcessID = fork();
@@ -43,37 +43,48 @@ void sequential(char* cmdTokens[], int count, int timeout){
     		exit(1);
 		}
 	
-		int status;
+		
 		
 		if(timeout == 0){ // if there is no timeout, block on the child process to terminate
+			int status;
+			
 			do
 			 waitpid(childProcessID, &status, 0);
-			while(!WIFEXITED(status) && !WIFSIGNALED(status));
+			while(!WIFEXITED(status) && !WIFSIGNALED(status)); // until WIFEXITED(status) or WIFSIGNALED(status) become true
 		}
-		else{
-			int time_remaining = timeout; // we know timeout does not equal 0
-			bool waiting = TRUE;
-			
-			while(waiting && time_remaining != 0) { 
-				sleep(1);
-				time_remaining = time_remaining - 1;
-				
-				if(waitpid(childProcessID, &status, WNOHANG) == 0) // if waitpid returns without reaping any child processes
-					waiting = TRUE;
-				else
-					waiting = !WIFEXITED(status); // we are "waiting", if the child process has not terminated
-				
-				if(waiting && time_remaining == 0){
-					kill(childProcessID, SIGKILL);
-					printf("%s timed out\n", cmdTokens[0]);
-					// will exit loop because (time_remaining != 0) == false
-				}
+		else{ // timeout should be in the range 1-9, so we will give the child process "timeout" many seconds to terminate
+			if(waitOnProcessForSeconds(childProcessID, timeout)){ // if the child process terminated on its own
+				// good!
+			}
+			else{// if the child process exceeded timeout
+				kill(childProcessID, SIGKILL);
+				printf("%s timed out\n", cmdTokens[0]);
 			}
 		} 
 	}
 }
 
-void concurrent(char* cmdTokens[], int count, int timeouts){
+// used by execCmdSequentially
+// returns true if process terminted. returns false if process exceeded timeRemaining.
+int waitOnProcessForSeconds(int childProcessID, int timeRemaining){
+	bool processBeenReaped = FALSE;
+			
+	while(!processBeenReaped && timeRemaining != 0) { // do this until we've reaped the child process, or until the process has timed out
+		sleep(1); // give the process a second to run
+		timeRemaining = timeRemaining - 1; // remove a second from our timer
+		
+		int status;
+		if(waitpid(childProcessID, &status, WNOHANG) == 0) // if waitpid returns without reaping any child processes
+			processBeenReaped = FALSE;
+		else
+			processBeenReaped = WIFEXITED(status);
+
+	}
+	
+	return processBeenReaped; // return true if we have reaped the child process. return false if the child process exceeded its time.	
+}
+
+void execCmdConcurrently(char* cmdTokens[], int count, int timeouts){
 	
 }
 
@@ -105,8 +116,8 @@ int main() {
     // end parsing code
 
 	if(parallel)
-		concurrent(cmdTokens, count, timeout);
+		execCmdConcurrently(cmdTokens, count, timeout);
 	else
-		sequential(cmdTokens, count, timeout);
+		execCmdSequentially(cmdTokens, count, timeout);
   }
 }
