@@ -35,6 +35,11 @@ void killProcess(int processID){
 	printf("Process %i timed out\n", processID);	
 }
 
+// used by both execCmdSequentially and execCmdConcurrently
+void announceProcessStarted(int processID){
+	printf("Process %i started\n", processID);
+}
+
 // used by execCmdSequentially
 // returns true if process terminted. returns false if process exceeded timeRemaining.
 int waitOnProcessForSeconds(int childProcessID, int timeRemaining){
@@ -61,6 +66,8 @@ void execCmdSequentially(char* cmdTokens[], int count, int timeout){
 		// start up the program in a child process
 		childProcessID = fork();
 		if(childProcessID == 0){ // if this is the child process
+			announceProcessStarted(getpid());
+		
  			execvp(cmdTokens[0], cmdTokens);
  			
  			// code should only be reached if execvp fails
@@ -75,10 +82,12 @@ void execCmdSequentially(char* cmdTokens[], int count, int timeout){
 			do
 			 waitpid(childProcessID, &status, 0);
 			while(!WIFEXITED(status) && !WIFSIGNALED(status)); // until WIFEXITED(status) or WIFSIGNALED(status) become true
+			
+			printf("Process %i terminated\n", childProcessID);
 		}
 		else{ // timeout should be in the range 1-9, so we will give the child process "timeout" many seconds to terminate
 			if(waitOnProcessForSeconds(childProcessID, timeout)){ // if the child process terminated on its own
-				// good!
+				printf("Process %i terminated\n", childProcessID);
 			}
 			else{// if the child process exceeded timeout
 				killProcess(childProcessID);
@@ -92,8 +101,8 @@ void execCmdSequentially(char* cmdTokens[], int count, int timeout){
 void removeProcessIDfromArray(int processID, int (*processIDs)[], int count){
 	int i;
 	for(i = 0; i< count; i++)
-		if((*processIDs)[i] == processID)
-			(*processIDs)[i] = NULL;	
+		if((*processIDs)[i] == processID){
+			(*processIDs)[i] = NULL;	}
 }
 
 // used by execCmdConcurrently
@@ -110,15 +119,18 @@ void checkAllProcessesTerminated(int (*processIDs)[], int count, int *allProcess
 int waitOnProcessesForSeconds(int (*processIDs)[], int count, int timeRemaining){
 	bool allProcessesTerminated = FALSE;
 			
-	while(!allProcessesTerminated && timeRemaining != 0) { // do this until we've reaped all the child processes, or until the processes have timed out
-		sleep(1); // give the processes a second to run
-		timeRemaining = timeRemaining - 1; // remove a second from our timer
-		
+	while(!allProcessesTerminated && timeRemaining > 0) { // do this until we've reaped all the child processes, or until the processes have timed out
 		int status;
 		int processID = waitpid(-1, &status, WNOHANG);
-		if(processID == 0) // if waitpid returns without reaping any child processes
-			allProcessesTerminated = FALSE;
+		if(processID == 0){ // if waitpid returns without reaping any child processes
+			if(timeRemaining > 1)
+				sleep(1); // give the processes a second to run
+				
+			timeRemaining = timeRemaining - 1; // remove a second from our timer
+		}
 		else if(WIFEXITED(status)){ // if a process has terminated
+			printf("Process %i terminated\n", processID);
+		
 			removeProcessIDfromArray(processID, processIDs, count);
 			checkAllProcessesTerminated(processIDs, count, &allProcessesTerminated);
 		}
@@ -136,6 +148,8 @@ void execCmdConcurrently(char* cmdTokens[], int count, int timeout){
 		childProcessIDs[i] = fork();
 		
 		if(childProcessIDs[i] == 0){
+			announceProcessStarted(getpid());
+			
 			execvp(cmdTokens[0], cmdTokens);
  			
  			// code should only be reached if execvp fails
@@ -153,6 +167,8 @@ void execCmdConcurrently(char* cmdTokens[], int count, int timeout){
 			
 			if(WIFEXITED(status) || WIFSIGNALED(status)) // if waitpid returned because one of the cihld processes terminated or was signaled to exit
 			{
+				printf("Process %i terminated\n", processID);
+				
 				removeProcessIDfromArray(processID, &childProcessIDs, count);
 				checkAllProcessesTerminated(&childProcessIDs, count, &allProcessesTerminated);
 			}
