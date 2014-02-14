@@ -18,11 +18,11 @@ class Closh {
 				break;
 			
 			try{
-				Process childProcess = Runtime.getRuntime().exec(command.split("\\s+"));
+				Process childProcess = Runtime.getRuntime().exec(command.split("\\s+")); // forks the new process
 				
-				BufferedReader childProcessOutput = new BufferedReader(new InputStreamReader(childProcess.getInputStream()));  
-            	for(String nextLine = childProcessOutput.readLine(); nextLine != null; nextLine = childProcessOutput.readLine()) 
-                	System.out.println(nextLine);  
+				BufferedReader childProcessOutput = new BufferedReader(new InputStreamReader(childProcess.getInputStream())); // output of child process 
+            	for(String nextLine = childProcessOutput.readLine(); nextLine != null; nextLine = childProcessOutput.readLine()) // while EOF has not been reached
+                	System.out.println(nextLine); // print line of child process output
 				
 				boolean shouldKeepWaiting = false;
 				do{
