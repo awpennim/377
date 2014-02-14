@@ -1,0 +1,3 @@
+I did this part of the lab after doing the C portion. It was much simpler to use the high level language. The only difficulty I had came from figuring out how to redirect the child process's output to the terminal.
+
+Since this program's source is so short, I didn't make a whole lot of design decisions. I knew I would have a loop for each "mysh>" until "exit" was entered. 

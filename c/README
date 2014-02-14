@@ -1,0 +1,4 @@
+This portion of the lab took the longest. I'm unfamiliar with C, so I took my time with this lab to gain a better understanding of the syntax.
+
+With each command the user enters, my program handles it as 1 of 4 cases. First, it checks to see if the program should be run in paralell or sequentially. Within the paralell and sequential functions, I split when timeout == 0 (meaning an infinite timeout) and when the timeout is greator than 0. The code before, during, and after the splitting into the 4 cases is pretty straightforward and thoroughly documented inline with the code. The only other major design choice I made was to extract as much code as possible into "helper" functions. This kept functions from getting too big and made my program more "readable".
+
