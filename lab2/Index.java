@@ -79,13 +79,11 @@ class Reducer extends Thread{
 		while(true){
 			IndexingJob job = nextIndexingJob();
 			
-			if(job != null){
-				String word = job.getWord();
-				String name_of_file_where_word_occured = job.getFileName();
-				int line_number_in_file_where_word_occured = job.getLineNumber();
+			String word = job.getWord();
+			String name_of_file_where_word_occured = job.getFileName();
+			int line_number_in_file_where_word_occured = job.getLineNumber();
 			
-				Index.addWordToInvertedIndex(word, name_of_file_where_word_occured, line_number_in_file_where_word_occured);
-			}
+			Index.addWordToInvertedIndex(word, name_of_file_where_word_occured, line_number_in_file_where_word_occured);
 		}
 	}
 	
@@ -108,14 +106,14 @@ class Reducer extends Thread{
 			empty.acquire();
 		}
 		catch(InterruptedException e){ // if the empty semaphore can't be aquired, just return null	
-			return null;
+			return nextIndexingJob();
 		}
 		try{
 			lock.acquire();
 		}
 		catch(InterruptedException e){ // if the lock can't be aquired, we don't actually need the empty semaphore because we didnt take anything off the buffer.
 			empty.release();	
-			return null;
+			return nextIndexingJob();
 		}
 		
 		IndexingJob job = jobs_buffer.getJob();
@@ -162,12 +160,14 @@ class Mapper extends Thread{
 		String[] words_in_current_line = line_of_text.replaceAll("[^A-Za-z0-9 ]","").toLowerCase().split("\\s+"); // array of all words in the current line (minus non-alphanumeric characters and whitespaces)
 				
 		for(int i = 0; i < words_in_current_line.length; i++){
-			// (words[i].hashCode() % n) sometimes returns a negative integer. so, we add n, then mod by n to get a positive integer equivalent mod n.
-			int random_reducer_id = ((words_in_current_line[i].hashCode() % n) + n) % n;
-			
-			Reducer random_reducer = Index.reducers.get(random_reducer_id);
-			
-			sendJobToReducer(new IndexingJob(words_in_current_line[i], filename, line_number), random_reducer);	
+			if(words_in_current_line[i].equals("") == false){
+				// (words[i].hashCode() % n) sometimes returns a negative integer. so, we add n, then mod by n to get a positive integer equivalent mod n.
+				int random_reducer_id = ((words_in_current_line[i].hashCode() % n) + n) % n;
+				
+				Reducer random_reducer = Index.reducers.get(random_reducer_id);
+				
+				sendJobToReducer(new IndexingJob(words_in_current_line[i], filename, line_number), random_reducer);
+			}
 		}
 	}
 	
