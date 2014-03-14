@@ -30,7 +30,7 @@ public class Index{
 		
 		// create/start k mappers and add them to an array list
 		for(int i = 0; i < k; i++){
-			Mapper mapper = new Mapper(args[i + 1], k); // we send the mapper thread the text file which it will be parsing and we also send it the number of reducer threads. This allows the mapper to send a "job" randomly to a recucer thread.
+			Mapper mapper = new Mapper(args[i + 1], n); // we send the mapper thread the text file which it will be parsing and we also send it the number of reducer threads. This allows the mapper to send a "job" randomly to a recucer thread.
 			mappers.add(mapper);
 			mapper.start();
 		}
@@ -129,11 +129,11 @@ class Reducer extends Thread{
 
 class Mapper extends Thread{
 	private String filename;
-	private int k; // number of reducer threads. this lets us randomly send a "job" to a reducer thread.
+	private int n; // number of reducer threads. this lets us randomly send a "job" to a reducer thread.
 	
-	public Mapper(String filename, int k){
+	public Mapper(String filename, int n){
 		this.filename = filename;	
-		this.k = k;
+		this.n = n;
 	}
 	
 	public void run(){
@@ -162,8 +162,8 @@ class Mapper extends Thread{
 		String[] words_in_current_line = line_of_text.replaceAll("[^A-Za-z0-9 ]","").toLowerCase().split("\\s+"); // array of all words in the current line (minus non-alphanumeric characters and whitespaces)
 				
 		for(int i = 0; i < words_in_current_line.length; i++){
-			// (words[i].hashCode() % k) sometimes returns a negative integer. so, we add k, then mod by k to get a positive integer equivalent mod k.
-			int random_reducer_id = ((words_in_current_line[i].hashCode() % k) + k) % k;
+			// (words[i].hashCode() % n) sometimes returns a negative integer. so, we add n, then mod by n to get a positive integer equivalent mod n.
+			int random_reducer_id = ((words_in_current_line[i].hashCode() % n) + n) % n;
 			
 			Reducer random_reducer = Index.reducers.get(random_reducer_id);
 			
@@ -289,7 +289,7 @@ class Printer{
 			
 		System.out.print(line_numbers.get(0)); // the first line number is unique. we just print out the line number
 		for(int l = 1; l < line_numbers.size(); l++){
-			System.out.print(line_numbers.get(l)); // the following line numbers need a comma (",") printed before it.
+			System.out.print("," + line_numbers.get(l)); // the following line numbers need a comma (",") printed before it.
 		}
 	}
 }
