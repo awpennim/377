@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.*;
 
 public class Index{
 	// the inverted_index maps words in the text files (strings) to another hashmap. this other hashmap maps the filenames to an array list of line numbers (Integers).
-	private static ConcurrentHashMap<String, ConcurrentHashMap<String, ArrayList<Integer>>> inverted_index = new ConcurrentHashMap<String, ConcurrentHashMap<String, ArrayList<Integer>>>();
+	private static ConcurrentHashMap<String, ConcurrentHashMap<String, List<Integer>>> inverted_index = new ConcurrentHashMap<String, ConcurrentHashMap<String, List<Integer>>>();
 	
 	protected static final ArrayList<Reducer> reducers = new ArrayList<Reducer>();
 	protected static final ArrayList<Mapper> mappers = new ArrayList<Mapper>();
@@ -40,10 +40,10 @@ public class Index{
 	// this method IS thead safe!
 	public static void addWordToInvertedIndex(String word, String filename, int line_number){
 		// if its the first time we've seen the word, create/add a hashmap
-		inverted_index.putIfAbsent(word, new ConcurrentHashMap<String, ArrayList<Integer>>()); // 	
+		inverted_index.putIfAbsent(word, new ConcurrentHashMap<String, List<Integer>>()); // 	
 		
 		// if its the forst time we've seen this word in this file, create/add an array list
-		inverted_index.get(word).putIfAbsent(filename, Collections.synchronizedList(new ArrayList())<Integer>()); 
+		inverted_index.get(word).putIfAbsent(filename, Collections.synchronizedList(new ArrayList<Integer>())); 
 		
 		inverted_index.get(word).get(filename).add(line_number);	
 	}
@@ -79,21 +79,23 @@ class Reducer extends Thread{
 		while(true){
 			IndexingJob job = nextIndexingJob();
 			
-			String word = job.getWord();
-			String name_of_file_where_word_occured = job.getFileName();
-			int line_number_in_file_where_word_occured = job.getLineNumber();
+			if(job != null){
+				String word = job.getWord();
+				String name_of_file_where_word_occured = job.getFileName();
+				int line_number_in_file_where_word_occured = job.getLineNumber();
 			
-			Index.addWordToInvertedIndex(word, name_of_file_where_word_occured, line_number_in_file_where_word_occured);
+				Index.addWordToInvertedIndex(word, name_of_file_where_word_occured, line_number_in_file_where_word_occured);
+			}
 		}
 	}
 	
-	public Semaphor getLockSemaphor(){
+	public Semaphore getLockSemaphore(){
 		return lock;	
 	}
-	public Semaphor getFullSemaphor(){
+	public Semaphore getFullSemaphore(){
 		return full;	
 	}
-	public Semaphor getEmptySemaphor(){
+	public Semaphore getEmptySemaphore(){
 		return empty;	
 	}
 	public JobsBuffer getJobsBuffer(){
@@ -101,12 +103,23 @@ class Reducer extends Thread{
 	}
 	
 	// called by Mapper objects
-	private void nextIndexingJob(){
-		empty.acquire();
-		lock.acquire();
+	private IndexingJob nextIndexingJob() {
+		try{
+			empty.acquire();
+		}
+		catch(InterruptedException e){ // if the empty semaphore can't be aquired, just return null	
+			return null;
+		}
+		try{
+			lock.acquire();
+		}
+		catch(InterruptedException e){ // if the lock can't be aquired, we don't actually need the empty semaphore because we didnt take anything off the buffer.
+			empty.release();	
+			return null;
+		}
 		
 		IndexingJob job = jobs_buffer.getJob();
-		
+	
 		lock.release();
 		full.release();	
 		
@@ -148,9 +161,9 @@ class Mapper extends Thread{
 	private void parseLineAndSendToReducers(String line_of_text, int line_number){
 		String[] words_in_current_line = line_of_text.replaceAll("[^A-Za-z0-9 ]","").toLowerCase().split("\\s+"); // array of all words in the current line (minus non-alphanumeric characters and whitespaces)
 				
-		for(int i = 0; i < words.length; i++){
+		for(int i = 0; i < words_in_current_line.length; i++){
 			// (words[i].hashCode() % k) sometimes returns a negative integer. so, we add k, then mod by k to get a positive integer equivalent mod k.
-			int random_reducer_id = ((words[i].hashCode() % k) + k) % k
+			int random_reducer_id = ((words_in_current_line[i].hashCode() % k) + k) % k;
 			
 			Reducer random_reducer = Index.reducers.get(random_reducer_id);
 			
@@ -159,13 +172,26 @@ class Mapper extends Thread{
 	}
 	
 	private void sendJobToReducer(IndexingJob job, Reducer reducer){
-		reducer.getFullSemaphor().acquire(); // ask the full semaphor if we can add a job to the buffer
-		reducer.getLockSemaphor().acquire(); // acquire the lock to opperate on the jobs buffer
+		try{
+			reducer.getFullSemaphore().acquire(); // ask the full semaphor if we can add a job to the buffer
+		}
+		catch(InterruptedException e){
+			sendJobToReducer(job, reducer); // if we can't acquire the full semaphore, we try again
+			return;
+		}
+		try{
+			reducer.getLockSemaphore().acquire(); // acquire the lock to opperate on the jobs buffer	
+		}
+		catch(InterruptedException e){ // if we can't acquire the lock, we release teh full sempahore before trying again
+			reducer.getFullSemaphore().release(); 
+			sendJobToReducer(job, reducer);
+			return;
+		}
 		
 		reducer.getJobsBuffer().addJob(job);
 		
-		reducer.getLockSemaphor().release(); // release the lock to operate on the jobs buffer
-		reducer.getEmptySemaphor().release(); // tell the empty semaphor that a space in the buffer opened up.	
+		reducer.getLockSemaphore().release(); // release the lock to operate on the jobs buffer
+		reducer.getEmptySemaphore().release(); // tell the empty semaphor that a space in the buffer opened up.	
 	}
 }
 
@@ -201,20 +227,20 @@ class JobsBuffer{
 	private long jobs_buffer_length;
 	
 	public JobsBuffer(int size){
-		jobs_buffer = new IndexJob[size];
+		jobs_buffer = new IndexingJob[size];
 		jobs_buffer_head_pointer = 0;
 		jobs_buffer_length = 0;
 	}
 	
 	// by calling this, we assume you've checked to make sure the buffer isn't full
-	public void addJob(IndexJob new_job){
-		jobs_buffer[(jobs_buffer_head_pointer + jobs_buffer_length) % 10] = new_job;	
-		jobs_buffer_lenght++;
+	public void addJob(IndexingJob new_job){
+		jobs_buffer[(int)((jobs_buffer_head_pointer + jobs_buffer_length) % jobs_buffer.length)] = new_job;	
+		jobs_buffer_length++;
 	}
 	
 	// by calling this, we assumed you've checked to make sure the buffer has at least one job in it;
 	public IndexingJob getJob(){
-		IndexJob next_job = jobs_buffer[(jobs_buffer_head_pointer) % 10];
+		IndexingJob next_job = jobs_buffer[(int)((jobs_buffer_head_pointer) % jobs_buffer.length)];
 		
 		jobs_buffer_head_pointer++;
 		jobs_buffer_length--;
@@ -225,30 +251,30 @@ class JobsBuffer{
 
 // used by Index to print out the inverted index
 class Printer{
-	private ConcurrentHashMap<String, ConcurrentHashMap<String, ArrayList<Integer>>> inverted_index;
+	private ConcurrentHashMap<String, ConcurrentHashMap<String, List<Integer>>> inverted_index;
 	
-	public Printer(inverted_index){
+	public Printer(ConcurrentHashMap<String, ConcurrentHashMap<String, List<Integer>>> inverted_index){
 		this.inverted_index = inverted_index;
 	}
 	
 	public void print(){
-		ArrayList<HashMap<String, ArrayList<Integer>>> words = new ArrayList<HashMap<String, ArrayList<Integer>>>(inverted_index.keys()); // list of all the words in all text files
-		Collections.sort(words); // sort those words in alphabetical order
+		Object[] words = inverted_index.keySet().toArray();
+		Arrays.sort(words); // sort those words in alphabetical order
 		
 		// iterate over the sorted words. we will print out 1 line for each word.
-		for(int i = 0; i < words.size(); i++){
-			System.out.print(words.get(i)); // prints the word as the first thing in this line
+		for(int i = 0; i < words.length; i++){
+			System.out.print((String)words[i]); // prints the word as the first thing in this line
 			
-			printFileNamesAndLineNumbers(inverted_index.get(words.get(i));
+			printFileNamesAndLineNumbers(inverted_index.get((String)words[i]));
 			
 			System.out.println(); // return to the next line
 		}
 	}	
 	
 		
-	private void printFileNamesAndLineNumbers(ConcurrentHashMap<String, ArrayList<Integer>> file_name_to_line_numbers){
+	private void printFileNamesAndLineNumbers(ConcurrentHashMap<String, List<Integer>> file_name_to_line_numbers){
 		Object[] file_names_list = file_name_to_line_numbers.keySet().toArray();
-		Arrays.sort(file_names_list)
+		Arrays.sort(file_names_list);
 		
 		// iterate over each filename for this word.
 		for(int j = 0; j < file_names_list.length; j++){
@@ -258,7 +284,7 @@ class Printer{
 		}	
 	}
 	
-	private void printLineNumbers(ArrayList<Integer> line_numbers){
+	private void printLineNumbers(List<Integer> line_numbers){
 		Collections.sort(line_numbers); // sort it numerically
 			
 		System.out.print(line_numbers.get(0)); // the first line number is unique. we just print out the line number
