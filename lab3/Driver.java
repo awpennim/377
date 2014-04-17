@@ -20,8 +20,11 @@ class Driver{
 				read(currentFS, commandArray[1], Integer.parseInt(commandArray[2]));
 			else if(validArgsForWrite(commandArray))
 				write(currentFS, commandArray[1], Integer.parseInt(commandArray[2]));
-			else if(validArgsForUpdatingCurrentFileSystem(commandArray))
-				currentFS = new FileSystem(commandArray[0].toCharArray());	
+			else if(validArgsForUpdatingCurrentFileSystem(commandArray)){
+				currentFS = getUpdatedFileSystem(currentFS, new FileSystem(commandArray[0].toCharArray()));
+			}
+			else
+				System.out.println("Invalid command");
 		}
 	}
 	
@@ -34,10 +37,21 @@ class Driver{
 		return true;
 	}
 	
+	public static FileSystem getUpdatedFileSystem(FileSystem oldFS, FileSystem newFS){
+		if(newFS.validFileSystem()){
+			System.out.println("Using new file system: " + newFS.toString());
+			return newFS;
+		}
+		else{
+			System.out.println("Could not find file system with name: " + newFS.toString());
+			return oldFS;
+		}
+	}
+	
 	public static boolean validArgsForCreate(String[] args){
 		if(args.length != 3)
 			return false;
-		if(args[0] != "C" && args[0] != "c")
+		if(!args[0].equals("C") && !args[0].equals("c"))
 			return false;
 		
 		// we can assume args[1] is a valid string
@@ -63,7 +77,7 @@ class Driver{
 	public static boolean validArgsForDelete(String[] args){
 		if(args.length != 3)
 			return false;
-		if(args[0] != "D" && args[0] != "d")
+		if(!args[0].equals("D") && !args[0].equals("d"))
 			return false;
 		
 		// we can assume args[1] is a valid string
@@ -79,7 +93,7 @@ class Driver{
 	public static boolean validArgsForList(String[] args){
 		if(args.length != 1)
 			return false;
-		if(args[0] != "L" && args[0] != "l")
+		if(!args[0].equals("L") && !args[0].equals("l"))
 			return false;
 			
 		return true;
@@ -93,7 +107,7 @@ class Driver{
 	public static boolean validArgsForRead(String[] args){
 		if(args.length != 3)
 			return false;
-		if(args[0] != "R" && args[0] != "r")
+		if(!args[0].equals("R") && !args[0].equals("r"))
 			return false;
 		
 		// we can assume args[1] is a valid string
@@ -119,7 +133,7 @@ class Driver{
 	public static boolean validArgsForWrite(String[] args){
 		if(args.length != 3)
 			return false;
-		if(args[0] != "W" && args[0] != "w")
+		if(!args[0].equals("W") && !args[0].equals("w"))
 			return false;
 		
 		// we can assume args[1] is a valid string

@@ -3,12 +3,26 @@
 
 class FileSystem
 {
+	private char[] diskName;
+	
 
   public FileSystem(char diskName[]) // used to say "char diskname[16]"
 {
+	this.diskName = diskName;
    // open the file with the above name
    // this file will act as the "disk" for your file system
 
+}
+
+public boolean validFileSystem(){
+	if(new String(diskName).equals("disk0"))
+		return true;
+		
+	return false;
+}
+
+public String toString(){
+	return new String(diskName);	
 }
 
 /*
