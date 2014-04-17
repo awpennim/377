@@ -1,40 +1,73 @@
-
-
+import java.io.RandomAccessFile;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 
 class FileSystem
 {
 	private char[] diskName;
-
+    private RandomAccessFile file;
+    private boolean valid = true;
 
 	public FileSystem(char diskName[]) // used to say "char diskname[16]"
 	{
 		this.diskName = diskName;
-		// open the file with the above name
-		// this file will act as the "disk" for your file system	
+        
+        try{
+            this.file = new RandomAccessFile(new String(diskName), "rws");
+        }catch(FileNotFoundException e){
+            valid = false;
+        }
 	}
 
 	public boolean validFileSystem(){
-		if(new String(diskName).equals("disk0"))
-			return true;
-
-		return false;
+		return valid;
 	}
 
 	public String toString(){
 		return new String(diskName);	
 	}
 
-	public int create(char name[], int size){ 
-		//create a file with this name and this size
-
-
-		// high level pseudo code for creating a new file
+	public int create(byte name[], int size) throws IOException{
+        byte[] freeBlockList = new byte[128];
+        
+        file.seek(0);
+        file.read(freeBlockList);
+        
+        int counter = 0;
+        for(int i = 0; i < 128; i++){
+            if(freeBlockList[i] == 0)
+                counter++;
+        }
+        if(counter < size){
+            System.err.println("Not enough space on disk");
+            return 1;
+        }
+        
+        int indexOfFirstFreeInode = -1;
+        byte[] inodeUsed = new byte[4];
+        int used;
+        for(int i = 0; i < 16; i++){
+            file.seek((56 * i) + 52);
+            
+            file.read(inodeUsed);
+        
+            used = inodeUsed;
+            
+            if(used == 0){
+                indexOfFirstFreeInode = i;
+                break;
+            }
+        }
+        if(i == -1){
+            System.err.println("Too many files on disk");
+            return 1;
+        }
+        
 
 		// Step 1: check to see if we have sufficient free space on disk by
 		// reading in the free block list. To do this:
-		// move the file pointer to the start of the disk file.
-		// Read the first 128 bytes (the free/in-use block information)
-		// Scan the list to make sure you have sufficient free blocks to
+
+        
 		// allocate a new file of this size
 
 		//TODO: implement
@@ -65,7 +98,7 @@ class FileSystem
 		return 0; //success
 	}
 
-	public int delete(char name[]){
+	public int delete(byte name[]) throws IOException{
 		// Delete the file with this name
 
 		// Step 1: Locate the inode for this file
@@ -95,7 +128,7 @@ class FileSystem
 		return 0; //success
 	}
 
-	public int ls(){ 
+	public int ls() throws IOException{
 		// List names of all files on disk
 
 		// Step 1: read in each inode and print!
@@ -109,7 +142,7 @@ class FileSystem
 		return 0; //success
 	}
 
-	public int read(char name[], int blockNum, char buf[]){
+	public int read(byte name[], int blockNum, byte buf[]) throws IOException{
 
 		// read this block from this file
 
@@ -132,7 +165,7 @@ class FileSystem
 	}
 
 
-	public int write(char name[], int blockNum, char buf[]){
+	public int write(byte name[], int blockNum, byte buf[]) throws IOException{
 
 		// write this block to this file
 

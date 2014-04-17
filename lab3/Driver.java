@@ -1,5 +1,5 @@
 import java.util.Scanner;
-
+import java.io.IOException;
 
 class Driver{
 	public static void main(String[] args){
@@ -76,9 +76,13 @@ class Driver{
 		if(!checkFileName(fileName) || !checkSize(size))
 			return;
 		
-		fs.create(fileNameToCharArray(fileName), size);	
+        try{
+            fs.create(fileNameToByteArray(fileName), size);
+        }catch(IOException e){
+            System.err.println("Could not create file");
+        }
 	}
-	
+
 	public static boolean validArgsForDelete(String[] args){
 		if(args.length != 3)
 			return false;
@@ -94,9 +98,13 @@ class Driver{
 		if(!checkFileName(fileName))
 			return;
 			
-		fs.delete(fileNameToCharArray(fileName));
+        try{
+            fs.delete(fileNameToByteArray(fileName));
+        }catch(IOException e){
+            System.err.println("Could not delete file");
+        }
 	}
-	
+
 	public static boolean validArgsForList(String[] args){
 		if(args.length != 1)
 			return false;
@@ -107,9 +115,13 @@ class Driver{
 	}
 	
 	public static void list(FileSystem fs){
-		fs.ls();
+        try{
+            fs.ls();
+        }catch(IOException e){
+            System.err.println("Could not list file contents");
+        }
 	}
-	
+
 	public static boolean validArgsForRead(String[] args){
 		if(args.length != 3)
 			return false;
@@ -135,9 +147,14 @@ class Driver{
 		if(!checkFileName(fileName) || !checkSize(blockNum))
 			return;
 		
-		char[] buffer = new char[1024];
-		fs.read(fileNameToCharArray(fileName), blockNum, buffer);
-		
+		byte[] buffer = new byte[1024];
+        
+        try{
+            fs.read(fileNameToByteArray(fileName), blockNum, buffer);
+        }catch(IOException e){
+            System.err.println("Could not read from file");
+        }
+        
 		// do something with buffer
 	}
 	
@@ -167,12 +184,16 @@ class Driver{
 			return;
 		
 		// dummy data
-		char[] buffer = new char[1024];
+		byte[] buffer = new byte[1024];
 		for(int i = 0; i < 1024; i++){
-			buffer[i] = (char)(i % 256);	
+			buffer[i] = (byte)(i % 256);
 		}
 		
-		fs.write(fileNameToCharArray(fileName), blockNum, buffer);
+        try{
+            fs.write(fileNameToByteArray(fileName), blockNum, buffer);
+        }catch(IOException e){
+            System.err.println("Could not write to file");
+        }
 	}
 	
 	public static boolean checkFileName(String fileName){
@@ -194,13 +215,13 @@ class Driver{
 		return true;
 	}
 	
-	public static char[] fileNameToCharArray(String fileName){
-		char[] fileNameChar = new char[8];
+	public static byte[] fileNameToByteArray(String fileName){
+		byte[] fileNameChar = new byte[8];
 		for(int i = 0; i < fileName.length(); i++){
-			fileNameChar[i] = fileName.charAt(i);	
+			fileNameChar[i] = (byte)fileName.charAt(i);
 		}
 		for(int i = fileName.length(); i < 8; i++){
-			fileNameChar[i] = '\0';	
+			fileNameChar[i] = (byte)'\0';
 		}
 		
 		return fileNameChar;
