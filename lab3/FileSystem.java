@@ -6,7 +6,7 @@ class FileSystem
 	private char[] diskName;
 	
 
-  public FileSystem(char diskName[]) // used to say "char diskname[16]"
+public FileSystem(char diskName[]) // used to say "char diskname[16]"
 {
 	this.diskName = diskName;
    // open the file with the above name
@@ -25,9 +25,8 @@ public String toString(){
 	return new String(diskName);	
 }
 
-/*
-public int create(char name[8], int size)
-{ //create a file with this name and this size
+public int create(char name[], int size){ 
+	//create a file with this name and this size
 
   // high level pseudo code for creating a new file
 
@@ -60,12 +59,10 @@ public int create(char name[8], int size)
   // Move the file pointer to the position on disk where this inode was stored
   // Write out the inode
 
-} // End Create
+		return 0; //success
+	}
 
-
-
-public int detete(char name[8])
-{
+	public int delete(char name[]){
   // Delete the file with this name
 
   // Step 1: Locate the inode for this file
@@ -92,11 +89,10 @@ public int detete(char name[8])
   // Move the file pointer to the position on disk where this inode was stored
   // Write out the inode
 
-} // End Delete
+		return 0; //success
+	}
 
-
-public int ls(void)
-{ 
+	public int ls(){ 
   // List names of all files on disk
 
   // Step 1: read in each inode and print!
@@ -107,10 +103,10 @@ public int ls(void)
       // print the "name" and "size" fields from the inode
  // end for
 
-} // End ls
+		return 0; //success
+	}
 
-public int read(char name[8], int blockNum, char buf[1024])
-{
+	public int read(char name[], int blockNum, char buf[]){
 
    // read this block from this file
 
@@ -129,12 +125,11 @@ public int read(char name[8], int blockNum, char buf[1024])
 
     // Read in the block! => Read in 1024 bytes from this location
     //into the buffer "buf"
-    
-} // End read
+    	return 0; //successful
+	}
 
 
-public int write(char name[8], int blockNum, char buf[1024])
-{
+	public int write(char name[], int blockNum, char buf[]){
 
    // write this block to this file
 
@@ -153,7 +148,6 @@ public int write(char name[8], int blockNum, char buf[1024])
     // Write the block! => Write 1024 bytes from the buffer "buff" to 
       //  this location
 
-    
-} // end write
-*/
+    	return 0; //successful
+	}
 }

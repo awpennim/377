@@ -58,9 +58,6 @@ class Driver{
 		
 		try{
 			Integer.parseInt(args[2]);	
-			
-			if(Integer.parseInt(args[2]) < 0 || Integer.parseInt(args[2]) > 7)
-				return false;
 		}
 		catch(NumberFormatException e){
 			return false;	
@@ -70,8 +67,10 @@ class Driver{
 	}
 	
 	public static void create(FileSystem fs, String fileName, int size){
-		System.out.println("Create");
-		return;	
+		if(!checkFileName(fileName) || !checkSize(size))
+			return;
+		
+		fs.create(fileNameToCharArray(fileName), size);	
 	}
 	
 	public static boolean validArgsForDelete(String[] args){
@@ -86,8 +85,10 @@ class Driver{
 	}
 	
 	public static void delete(FileSystem fs, String fileName){
-		System.out.println("Delete");
-		return;	
+		if(!checkFileName(fileName))
+			return;
+			
+		fs.delete(fileNameToCharArray(fileName));
 	}
 	
 	public static boolean validArgsForList(String[] args){
@@ -100,8 +101,7 @@ class Driver{
 	}
 	
 	public static void list(FileSystem fs){
-		System.out.println("List");
-		return;	
+		fs.ls();
 	}
 	
 	public static boolean validArgsForRead(String[] args){
@@ -126,8 +126,13 @@ class Driver{
 	}
 	
 	public static void read(FileSystem fs, String fileName, int blockNum){
-		System.out.println("Read");
-		return;	
+		if(!checkFileName(fileName) || !checkSize(blockNum))
+			return;
+		
+		char[] buffer = new char[1024];
+		fs.read(fileNameToCharArray(fileName), blockNum, buffer);
+		
+		// do something with buffer
 	}
 	
 	public static boolean validArgsForWrite(String[] args){
@@ -152,7 +157,46 @@ class Driver{
 	}
 	
 	public static void write(FileSystem fs, String fileName, int blockNum){
-		System.out.println("Write");
-		return;	
+		if(!checkFileName(fileName) || !checkSize(blockNum))
+			return;
+		
+		// dummy data
+		char[] buffer = new char[1024];
+		for(int i = 0; i < 1024; i++){
+			buffer[i] = (char)(i % 256);	
+		}
+		
+		fs.write(fileNameToCharArray(fileName), blockNum, buffer);
+	}
+	
+	public static boolean checkFileName(String fileName){
+		if(fileName.length > 8){
+			System.out.println("file name is too long (8 max)");
+			
+			return false;
+		}
+		
+		return true;
+	}
+	
+	public static boolean checkSize(int size){	
+		if(size < 0 || size > 8){
+			System.out.println("file size must be positive and no greater than 8");
+			return false;
+		}	
+		
+		return true;
+	}
+	
+	public static char[] fileNameToCharArray(String fileName){
+		char[] fileNameChar = new char[8];
+		for(int i = 0; i < fileName.length; i++){
+			fileNameChar[i] = fileName.charAt(i);	
+		}
+		for(int i = fileName.length; i < 8; i++){
+			fileNameChar[i] = '\0';	
+		}
+		
+		return fileNameChar;
 	}
 }
