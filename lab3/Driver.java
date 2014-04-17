@@ -1,6 +1,5 @@
 import java.util.Scanner;
 
-// THIS IS A COMMENT
 
 class Driver{
 	public static void main(String[] args){
@@ -30,6 +29,12 @@ class Driver{
 		}
 	}
 	
+	
+	/**
+	 * This method does some stuff
+	 * @param args some information about this
+	 * @returns some info on what this returns
+	 */
 	public static boolean validArgsForUpdatingCurrentFileSystem(String[] args){
 		if(args.length != 1)
 			return false;
