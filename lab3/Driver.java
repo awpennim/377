@@ -170,7 +170,7 @@ class Driver{
 	}
 	
 	public static boolean checkFileName(String fileName){
-		if(fileName.length > 8){
+		if(fileName.length() > 8){
 			System.out.println("file name is too long (8 max)");
 			
 			return false;
@@ -190,10 +190,10 @@ class Driver{
 	
 	public static char[] fileNameToCharArray(String fileName){
 		char[] fileNameChar = new char[8];
-		for(int i = 0; i < fileName.length; i++){
+		for(int i = 0; i < fileName.length(); i++){
 			fileNameChar[i] = fileName.charAt(i);	
 		}
-		for(int i = fileName.length; i < 8; i++){
+		for(int i = fileName.length(); i < 8; i++){
 			fileNameChar[i] = '\0';	
 		}
 		
