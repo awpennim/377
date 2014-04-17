@@ -29,7 +29,6 @@ class Driver{
 		}
 	}
 	
-	
 	/**
 	 * This method does some stuff
 	 * @param args some information about this
