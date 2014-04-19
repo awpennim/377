@@ -1,6 +1,7 @@
 import java.io.RandomAccessFile;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 class FileSystem
 {
@@ -19,7 +20,7 @@ class FileSystem
         }
 	}
 
-	public boolean validFileSystem(){
+	public boolean isValidFileSystem(){
 		return valid;
 	}
 
@@ -27,29 +28,23 @@ class FileSystem
 		return new String(diskName);	
 	}
 	
-	
-	//TODO: Oh fuck. We need to convert byte[] stuff into sane (read: comparable) data
-	// http://stackoverflow.com/questions/5616052/how-can-i-convert-a-4-byte-array-to-an-integer
-	// why did we decide to write this in javaaaaaaa
-	
 	/**
 	 * Allocate space for a new file on disc
 	 */
-	public int create(byte name[], int size) throws IOException{
-		byte[] freeBlockList = new byte[128];
-		int counter = 0;
-		int indexOfFirstFreeInode = -1;
-		int indexOfFirstFreeBlock = -1;
-		byte[] inodeUsed = new byte[4];
-		int used;
-
-		file.seek(0); // Reset the file pointer to 0 just in case
-		file.read(freeBlockList);
+	public int create(char[] name, int size) throws IOException{
+        if(Inode.findInode(name, file) != null){
+            System.err.println("File already exists with that name");
+            return 1;
+        }
+        
+		// grabbing our freeBlockList
+        byte[] freeBlockList = new byte[128];
+        file.seek(0);
+		file.read(freeBlockList); // read in our 128 long bytemap of our blocks
+        
+        // lets see how many free blocks we have using our bytemap
 		for(int i = 0; i < 128; i++){
-			if(freeBlockList[i] == 0 && indexOfFirstFreeBlock == -1) {
-				indexOfFirstFreeBlock = i; // store the first free block index if one exists
-				counter++;
-			} else if (freeBlockList[i] == 0) {
+			if(freeBlockList[i] == (byte)0x00) {
 				counter++;
 			}
 		}
@@ -57,35 +52,55 @@ class FileSystem
 			System.err.println("Not enough space on disk");
 			return 1;
 		}
-		for(int i = 0; i < 16; i++){ // File count check
-			file.seek((56 * i) + 52);
-			file.read(inodeUsed);
-			used = inodeUsed; // Also, store the first free inode index if one exists
-			if(used == 0){
-				indexOfFirstFreeInode = i;
-				break;
-			}
+        
+        Inode allocatedInode = null;
+        Inode currentInode;
+        int currentInodeByteOffset;
+        byte[] inodeByteBuffer = new byte[56];
+		for(int currentInodeIndex = 0; currentInodeIndex < 16; currentInodeIndex++){ // File count check
+			currentInodeByteOffset = (128 + (56 * currentInodeIndex));
+            
+            file.seek(currentInodeByteOffset);
+			file.read(inodeByteBuffer);
+            
+            currentInode = new Inode(inodeByteBuffer, currentInodeByteOffset);
+            
+            if(currentInode.isUsed() == false){
+                allocatedInode = currentInode;
+                
+                currentInode.setUsed(true);
+                currentInode.setFileName(name);
+                currentInode.setSize(size);
+                
+                file.seek(currentInodeByteOffset);
+                file.write(currentInode.toBytes());
+                
+                break;
+            }
 		}
-		if(i == -1){
+		if(allocatedInode == null){
 			System.err.println("Too many files on disk");
 			return 1;
 		}
-                
-        //TODO: Create a new file of the specified size // Presumably this will get read into the FS as a bytestream
-        file.seek((56 * indexOfFirstFreeInode);
-        file.write(name);
-        file.seek(56 * indexOfFirstFreeInode + 16);
-        file.write(size);
-        file.seek(56 * indexOfFirstFreeInode + 52);
-        file.write(1);
-        file.seek(indexOfFirstFreeBlock);
-        file.write(1);
-        file.seek(56 * indexOfFirstFreeInode + 20); // This should be the first space in the blockPointers[] array
-        file.write(indexOfFirstFreeBlock);
-        //TODO: Is it possible to write to multiple blocks in a single pass? If so, we need to account for this.
         
-        file.seek(1024 * (indexOfFirstFreeBlock + 1); // The block list is offset by 1
-        file.write(); // Write the new file into the block
+        for(int currentBlockIndex = 0; currentBlockIndex < 128; currentBlockIndex++){
+            if(freeBlockList[i] == (byte)0x00){
+                freeBlockList[i] = 0x01; // in our bytemap, mark this block as used
+                
+                allocatedInode.setBlockPtr(numAllocatedBlocks, currentBlockIndex);
+                numAllocatedBlocks++;
+            }
+            
+            if(numAllocatedBlocks == size)
+                break;
+        }
+        
+        file.seek(0);
+        file.write(freeBlockList);
+        
+        file.seek(allocatedInode.getOffset());
+        file.write(allocatedInode.getBytes());
+        
 		return 0; //success
 	}
 
@@ -93,31 +108,44 @@ class FileSystem
 	/**
 	 * Remove this file from the disc
 	 */
-	public int delete(byte name[]) throws IOException{
-		int currentInode = 129;
-		byte[] currentFileName;
-		file.seek(129);
-		for (int i = 0; i < 16; i++) {
-			file.read(currentFileName);
-			// TODO: Replace the comparison stuff with something realistic
-			if (new String(currentFileName).equals(new String(name)) { // Zero out the current inode;
-				file.seek(currentInode);
-				file.write(0); // name; This may need to be set to write 8 zeroes
-				file.seek(currentInode + 16); // size
-				file.write(0);
-				file.seek(currentInode + 20); // blockPtr[]
-				for (int j = 0; j < 32) {
-					
-					//TODO: read each block number from blockPtr[] and free it in the freeBlockList
-					
-					file.write(0); // write 32 bytes of zeroes
-				}
-				file.seek(currentInode + 52); // used
-				file.write(0);
-				break;
-			}
-			currentInode = currentInode + 56;
-		}
+	public int delete(char[] name) throws IOException{
+        // grabbing our freeBlockList
+        byte[] freeBlockList = new byte[128];
+        file.seek(0);
+		file.read(freeBlockList); // read in our 128 long bytemap of our blocks
+        
+        Inode currentInode;
+        int currentInodeByteOffset;
+        
+        byte[] inodeByteBuffer = new byte[56];
+        
+        // iterate over inodes, looking for a used inode with a matching filename
+		for (int currentInodeIndex = 0; currentInodeIndex < 16; currentInodeIndex++) {
+            currentInodeByteOffset = 128 + (currentInodeIndex * 56);  // account for bytemap (size 128)
+            
+            file.seek(currentInodeByteOffset);
+			file.read(inodeByteBuffer);
+            
+            currentInode = new Inode(inodeByteBuffer, currentInodeByteOffset);
+            
+            // if the inode is used and has a matching filename
+            if(currentInode.isUsed() && Array.equals(currentInode.getFileName(), name)){
+                for(int j = 0; j < currentInode.getSize(); j++){
+                    freeBlockList[currentInode.getBlockPtr(j)] = (byte)0x00;
+                }
+                
+                currentInode.setUsed(false);
+                
+                file.seek(currentInodeByteOffset);
+                file.write(currentInode.toBytes()); // write this freed inode to disk
+                
+                break;
+            }
+        }
+                          
+        file.seek(0);
+        file.write(freeBlockList); // we must update the freeBlockList because more blocks are now free
+                        
 		return 0; //success
 	}
 
@@ -126,23 +154,14 @@ class FileSystem
 	 * List names of all files on disk
 	 */
 	public int ls() throws IOException{
-		int currentInode = 129;
-		byte[] currentFileName = new byte[8];
-		byte[] currentFileSize = new byte[4];
-		byte[] currentFileUse = new byte[4];
-		String fileInfo = "";
-		for (int i = 0; i < 16; i++) {
-			file.seek(currentInode + 52); // used
-			file.read(currentFileUse);
-			if (currentFileUse != 0) { //TODO: do a proper comparison
-				file.seek(currentInode);
-				file.read(currentFileName);
-				file.seek(currentInode + 4);
-				file.read(currentFileSize);
-				fileInfo += "Name: " + (new String(currentFileName)) + " Size: " + (new String(currentFileSize)); //TODO: print byte[]s properly
-			}
-			currentInode = currentInode + 56;
-		}
+		Inode[] allUsed;
+        
+        allUsed = Inode.getAllUsed(file);
+        
+        for(int i = 0; i < allUsed.length; i++){
+            System.out.println(new String(allUsed[i].getFileName()) + " " + allUsed[i].getSize())
+        }
+        
 		return 0; //success
 	}
 
@@ -150,52 +169,25 @@ class FileSystem
 	/**
 	 * read this block from this file
 	 */
-	public int read(byte name[], int blockNum, byte buf[]) throws IOException{
-		int currentInode = 129;
-		byte[] currentFileName;
-		file.seek(129);
-		for (int i = 0; i < 16; i++) {
-			file.read(currentFileName);
-			// TODO: Replace the comparison stuff with something realistic
-			if (new String(currentFileName).equals(new String(name)) {
-				file.seek(currentInode + 20); // blockPtr[]
-				for (int j = 0; j < 32) {
-					//TODO: read each block number from blockPtr[]
-					// Step 2: Read in the specified block
-					// Check that blockNum < inode.size, else flag an error
-					// Get the disk address of the specified block
-					// That is, addr = inode.blockPointer[blockNum]
-					// move the file pointer to the block location (i.e., to byte #
-					//addr*1024 in the file)
-					// Read in the block! => Read in 1024 bytes from this location
-					//into the buffer "buf"
-				}
-				break;
-			}
-			currentInode = currentInode + 56;
-		}
+	public int read(char[] name, int blockNum, byte[] buf) throws IOException{
+		Inode currentInode;
+        
+        currentInode = Inode.findInode(name, file);
+        
+        file.seek(currentInode.getBlockPtr(blockNum) * 1024);
+        file.read(buf, 0 , 1024);
+                
 		return 0; //successful
 	}
 
 
-	public int write(byte name[], int blockNum, byte buf[]) throws IOException{
+	public int write(char[] name[], int blockNum, byte[] buf) throws IOException{
+        Inode currentInode;
+        
+        currentInode = Inode.findInode(name, file);
 
-		// write this block to this file
-
-		// Step 1: locate the inode for this file
-		// Move file pointer to the position of the 1st inode (129th byte)
-		// Read in a inode
-		// If the inode is in use, compare the "name" field with the above file
-		// IF the file names don't match, repeat
-
-		// Step 2: Write to the specified block
-		// Check that blockNum < inode.size, else flag an error
-		// Get the disk address of the specified block
-		// That is, addr = inode.blockPointer[blockNum]
-		// move the file pointer to the block location (i.e., byte # addr*1024)
-
-		// Write the block! => Write 1024 bytes from the buffer "buff" to 
-		//  this location
+        file.seek(currentInode.getBlockPtr(blockNum) * 1024);
+        file.write(buf, 0, 1024);
 
 		return 0; //successful
 	}

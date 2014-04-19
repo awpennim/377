@@ -44,7 +44,7 @@ class Driver{
 	}
 	
 	public static FileSystem getUpdatedFileSystem(FileSystem oldFS, FileSystem newFS){
-		if(newFS.validFileSystem()){
+		if(newFS.isValidFileSystem()){
 			System.out.println("Using new file system: " + newFS.toString());
 			return newFS;
 		}
