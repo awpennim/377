@@ -77,7 +77,7 @@ class Driver{
 			return;
 		
         try{
-            fs.create(fileNameToByteArray(fileName), size);
+            fs.create(fileNameToCharArray(fileName), size);
         }catch(IOException e){
             System.err.println("Could not create file");
         }
@@ -99,7 +99,7 @@ class Driver{
 			return;
 			
         try{
-            fs.delete(fileNameToByteArray(fileName));
+            fs.delete(fileNameToCharArray(fileName));
         }catch(IOException e){
             System.err.println("Could not delete file");
         }
@@ -150,7 +150,7 @@ class Driver{
 		byte[] buffer = new byte[1024];
         
         try{
-            fs.read(fileNameToByteArray(fileName), blockNum, buffer);
+            fs.read(fileNameToCharArray(fileName), blockNum, buffer);
         }catch(IOException e){
             System.err.println("Could not read from file");
         }
@@ -190,7 +190,7 @@ class Driver{
 		}
 		
         try{
-            fs.write(fileNameToByteArray(fileName), blockNum, buffer);
+            fs.write(fileNameToCharArray(fileName), blockNum, buffer);
         }catch(IOException e){
             System.err.println("Could not write to file");
         }
@@ -215,15 +215,7 @@ class Driver{
 		return true;
 	}
 	
-	public static byte[] fileNameToByteArray(String fileName){
-		byte[] fileNameChar = new byte[8];
-		for(int i = 0; i < fileName.length(); i++){
-			fileNameChar[i] = (byte)fileName.charAt(i);
-		}
-		for(int i = fileName.length(); i < 8; i++){
-			fileNameChar[i] = (byte)'\0';
-		}
-		
-		return fileNameChar;
+	public static char[] fileNameToCharArray(String fileName){
+		return fileName.toCharArray();
 	}
 }

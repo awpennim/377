@@ -2,6 +2,7 @@ import java.io.RandomAccessFile;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 class FileSystem
 {
@@ -9,7 +10,7 @@ class FileSystem
     private RandomAccessFile file;
     private boolean valid = true;
 
-	public FileSystem(char diskName[]) // used to say "char diskname[16]"
+	public FileSystem(char[] diskName)
 	{
 		this.diskName = diskName;
         
@@ -43,7 +44,8 @@ class FileSystem
 		file.read(freeBlockList); // read in our 128 long bytemap of our blocks
         
         // lets see how many free blocks we have using our bytemap
-		for(int i = 0; i < 128; i++){
+		int counter = 0;
+        for(int i = 0; i < 128; i++){
 			if(freeBlockList[i] == (byte)0x00) {
 				counter++;
 			}
@@ -83,9 +85,11 @@ class FileSystem
 			return 1;
 		}
         
+        // find free blocks using our bytemap, set the blocks to used, then tell the Inode where those blocks are
+        int numAllocatedBlocks = 0;
         for(int currentBlockIndex = 0; currentBlockIndex < 128; currentBlockIndex++){
-            if(freeBlockList[i] == (byte)0x00){
-                freeBlockList[i] = 0x01; // in our bytemap, mark this block as used
+            if(freeBlockList[currentBlockIndex] == (byte)0x00){
+                freeBlockList[currentBlockIndex] = 0x01; // in our bytemap, mark this block as used
                 
                 allocatedInode.setBlockPtr(numAllocatedBlocks, currentBlockIndex);
                 numAllocatedBlocks++;
@@ -99,7 +103,7 @@ class FileSystem
         file.write(freeBlockList);
         
         file.seek(allocatedInode.getOffset());
-        file.write(allocatedInode.getBytes());
+        file.write(allocatedInode.toBytes());
         
 		return 0; //success
 	}
@@ -129,7 +133,7 @@ class FileSystem
             currentInode = new Inode(inodeByteBuffer, currentInodeByteOffset);
             
             // if the inode is used and has a matching filename
-            if(currentInode.isUsed() && Array.equals(currentInode.getFileName(), name)){
+            if(currentInode.isUsed() && Arrays.equals(currentInode.getFileName(), name)){
                 for(int j = 0; j < currentInode.getSize(); j++){
                     freeBlockList[currentInode.getBlockPtr(j)] = (byte)0x00;
                 }
@@ -159,7 +163,7 @@ class FileSystem
         allUsed = Inode.getAllUsed(file);
         
         for(int i = 0; i < allUsed.length; i++){
-            System.out.println(new String(allUsed[i].getFileName()) + " " + allUsed[i].getSize())
+            System.out.println(new String(allUsed[i].getFileName()) + " " + allUsed[i].getSize());
         }
         
 		return 0; //success
@@ -181,7 +185,7 @@ class FileSystem
 	}
 
 
-	public int write(char[] name[], int blockNum, byte[] buf) throws IOException{
+	public int write(char[] name, int blockNum, byte[] buf) throws IOException{
         Inode currentInode;
         
         currentInode = Inode.findInode(name, file);

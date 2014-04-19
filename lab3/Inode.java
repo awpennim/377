@@ -1,12 +1,17 @@
 import java.nio.ByteBuffer;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.io.IOException;
 
 class Inode{
-    public static Inode[] getAllUsed(RandomAccessFile file){
+    public static Inode[] getAllUsed(RandomAccessFile file) throws IOException{
         ArrayList<Inode> allUsed = new ArrayList<Inode>();
         Inode currentInode;
         
+        // iterate through all our inodes, and add them to the list if they are in use
+        int currentInodeByteOffset;
+        byte[] inodeByteBuffer = new byte[56];
         for (int currentInodeIndex = 0; currentInodeIndex < 16; currentInodeIndex++) {
             currentInodeByteOffset = 128 + (currentInodeIndex * 56);  // account for bytemap (size 128)
             
@@ -22,9 +27,12 @@ class Inode{
         return allUsed.toArray(new Inode[allUsed.size()]); // idea from http://stackoverflow.com/questions/4042434/convert-arraylist-containing-strings-to-an-array-of-strings-in-java
     }
     
-    public static Inode findInode(char[] name, RandomAccessFile file){
+    public static Inode findInode(char[] name, RandomAccessFile file) throws IOException{
         Inode currentInode;
         
+        // iterate through all our inodes, if they are in use and their filename matches then we return it
+        int currentInodeByteOffset;
+        byte[] inodeByteBuffer = new byte[56];
         for (int currentInodeIndex = 0; currentInodeIndex < 16; currentInodeIndex++) {
             currentInodeByteOffset = 128 + (currentInodeIndex * 56);  // account for bytemap (size 128)
             
@@ -33,7 +41,7 @@ class Inode{
             
             currentInode = new Inode(inodeByteBuffer, currentInodeByteOffset);
             
-            if(currentInode.isUsed() && Array.equals(currentInode.getFileName(), name))
+            if(currentInode.isUsed() && Arrays.equals(currentInode.getFileName(), name))
                 return currentInode;
         }
         
@@ -46,7 +54,7 @@ class Inode{
     private byte[] sizeAsBytes = new byte[4]; // used in toBytes();
     private int[] blockPtrs = new int[8];
     private byte[] blockPtrsAsBytes = new byte[32]; // used in toBytes();
-    private int used;
+    private boolean used;
     private byte[] usedAsBytes = new byte[4]; // used in toBytes();
     
     private int offset; // Inode location (in bytes) in the file
@@ -58,14 +66,14 @@ class Inode{
         System.arraycopy(bytes, 20, blockPtrsAsBytes, 0, 32); // copy 21-32 (inclusive) bytes from bytes to blockPtrsAsBytes
         System.arraycopy(bytes, 52, usedAsBytes, 0, 4); // copy 52-56 (inclusive) bytes from bytes to usedAsBytes
         
-        this.name = new String(nameAsBytes);
+        this.name = new String(nameAsBytes).toCharArray();
         this.size = ByteBuffer.wrap(sizeAsBytes).getInt();
         
         for(int i = 0; i < size; i++){
-            this.blockPtrs[i] = ByteBuffer.wrap(blockPtrsAsBytes, i * 4, 4).toInt();
+            this.blockPtrs[i] = ByteBuffer.wrap(blockPtrsAsBytes, i * 4, 4).getInt();
         }
         
-        this.used = ByteBuffer.wrap(usedAsBytes).toInt();
+        this.used = (ByteBuffer.wrap(usedAsBytes).getInt() != 0);
     }
     
     public int getOffset(){
@@ -113,11 +121,11 @@ class Inode{
     public void setUsed(boolean val){
         if(val){
             this.used = true;
-            this.usedAsBytes = ByteBuffer.allocate(4).put(1).array();
+            this.usedAsBytes = ByteBuffer.allocate(4).putInt(1).array();
         }
         else{
             this.used = false;
-            this.usedAsBytes = ByteBuffer.allocate(4).put(0).array();
+            this.usedAsBytes = ByteBuffer.allocate(4).putInt(0).array();
         }
     }
     
