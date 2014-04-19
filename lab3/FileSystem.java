@@ -203,6 +203,10 @@ class FileSystem
             System.err.println("Could not find file with that name");
             return 1;
         }
+        if(currentInode.getSize() - 1 < blockNum){
+            System.err.println("That block hasnt been allocated");
+            return 1;
+        }
         
         file.seek(currentInode.getBlockPtr(blockNum) * 1024);
         file.read(buf, 0 , 1024);
@@ -229,6 +233,10 @@ class FileSystem
 
         if(currentInode == null){
             System.err.println("Could not find file with that name");
+            return 1;
+        }
+        if(currentInode.getSize() - 1 < blockNum){
+            System.err.println("That block hasnt been allocated");
             return 1;
         }
         

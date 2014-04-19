@@ -80,8 +80,7 @@ class Inode{
         
         // set the blockPtrs
         for(int i = 0; i < size; i++){
-            this.blockPtrs[i] =
-            ByteBuffer.wrap(blockPtrsAsBytes, i * 4, 4).getInt();
+            this.blockPtrs[i] = ByteBuffer.wrap(blockPtrsAsBytes, i * 4, 4).getInt();
         }
         
         // set the used
@@ -120,6 +119,8 @@ class Inode{
         
         try{
             this.nameAsBytes = new String(newName).getBytes("UTF-16");
+            
+            System.out.println(new String(nameAsBytes, "UTF-16"));
         }catch(UnsupportedEncodingException e){
             System.err.println("System doesn't support UTF-16. Now Terminating.");
             System.exit(1);
@@ -154,7 +155,13 @@ class Inode{
     public byte[] toBytes(){
         byte[] returnBytes = new byte[56];
         
-        System.arraycopy(nameAsBytes, 0, returnBytes, 0, 16);
+        for(int i = 0; i<nameAsBytes.length; i++)
+            System.out.println((int)(nameAsBytes[i]));
+        
+        if(nameAsBytes.length == 18) // sometimes nameAsBytes includes the the start-of-line character, so we don't save that
+            System.arraycopy(nameAsBytes, 2, returnBytes, 0, 16);
+        else
+            System.arraycopy(nameAsBytes, 0, returnBytes, 0, 16);
         System.arraycopy(sizeAsBytes, 0, returnBytes, 16, 4);
         System.arraycopy(blockPtrsAsBytes, 0, returnBytes, 20, 32);
         System.arraycopy(usedAsBytes, 0, returnBytes, 52, 4);

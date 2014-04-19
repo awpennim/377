@@ -78,7 +78,7 @@ class Driver{
 			return;
 		
         try{
-            if(fs.create(fileNameToCharArray(fileName), size + 1) != 0)
+            if(fs.create(fileNameToCharArray(fileName), size) != 0)
                 System.err.println("Error creating file");
         }catch(IOException e){
             System.err.println("Error creating file");
@@ -225,7 +225,7 @@ class Driver{
 	}
 	
 	public static boolean checkSize(int size){	
-		if(size < 0 || size > 7){
+		if(size < 0 || size > 8){
 			System.out.println("file size must be between 0 and 7");
 			return false;
 		}	
