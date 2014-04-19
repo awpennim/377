@@ -86,6 +86,8 @@ class Inode{
         
         // set the used
         this.used = (ByteBuffer.wrap(usedAsBytes).getInt() != 0);
+        
+        this.offset = offset;
     }
     
     public int getOffset(){
@@ -100,7 +102,7 @@ class Inode{
         blockPtrs[index] = val;
         
         for(int i = 0; i < 8; i++){
-            byte[] intAsBytes = ByteBuffer.allocate(4).putInt(blockPtrs[index]).array();
+            byte[] intAsBytes = ByteBuffer.allocate(4).putInt(blockPtrs[i]).array();
             
             for(int j = 0; j < 4; j++){
                 blockPtrsAsBytes[(i * 4) + j] =

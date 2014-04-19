@@ -1,5 +1,6 @@
 import java.io.RandomAccessFile;
 import java.io.FileNotFoundException;
+import java.io.UnsupportedEncodingException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -48,12 +49,12 @@ class FileSystem
         // lets see how many free blocks we have using our bytemap
 		int counter = 0;
         for(int i = 0; i < 128; i++){
-			if(freeBlockList[i] == (byte)0x00) {
+			if(freeBlockList[i] == 0x00) {
 				counter++;
 			}
 		}
 		if(counter < size){ // Disc space check
-			System.err.println("Not enough space on disk");
+			System.err.println("Not enough free blocks on disk");
 			return 1;
 		}
         
@@ -92,7 +93,7 @@ class FileSystem
         // find free blocks using our bytemap, set the blocks to used, then tell the Inode where those blocks are
         int numAllocatedBlocks = 0;
         for(int currentBlockIndex = 0; currentBlockIndex < 128; currentBlockIndex++){
-            if(freeBlockList[currentBlockIndex] == (byte)0x00){
+            if(freeBlockList[currentBlockIndex] == 0x00){
                 freeBlockList[currentBlockIndex] = 0x01; // in our bytemap, mark this block as used
                 
                 allocatedInode.setBlockPtr(numAllocatedBlocks, currentBlockIndex);
@@ -110,6 +111,9 @@ class FileSystem
         file.write(allocatedInode.toBytes());
         
         System.out.println("File successfully created!");
+        
+        for(int i = 0; i < allocatedInode.getSize(); i++)
+            System.out.println("Block " + allocatedInode.getBlockPtr(i) + " allocated for " + new String(allocatedInode.getFileName()));
         
 		return 0; //success
 	}
@@ -141,12 +145,13 @@ class FileSystem
             // if the inode is used and has a matching filename
             if(currentInode.isUsed() && Arrays.equals(currentInode.getFileName(), name)){
                 for(int j = 0; j < currentInode.getSize(); j++){
-                    freeBlockList[currentInode.getBlockPtr(j)] = (byte)0x00;
+                    System.out.println("Freeing block " + currentInode.getBlockPtr(j));
+                    freeBlockList[currentInode.getBlockPtr(j)] = 0x00;
                 }
                 
                 currentInode.setUsed(false);
                 
-                file.seek(currentInodeByteOffset);
+                file.seek(currentInode.getOffset());
                 file.write(currentInode.toBytes()); // write this freed inode to disk
                 
                 file.seek(0);
@@ -172,10 +177,15 @@ class FileSystem
         allUsed = Inode.getAllUsed(file);
         
         for(int i = 0; i < allUsed.length; i++){
-            System.out.println(new String(allUsed[i].getFileName()) + " " + allUsed[i].getSize());
+            System.out.println("Name: " + new String(allUsed[i].getFileName()) + " Size: " + allUsed[i].getSize());
+            
+            System.out.print("Blocks: ");
+            
+            for(int j = 0; j < allUsed[i].getSize(); j++)
+                System.out.print(allUsed[i].getBlockPtr(j) + " ");
+                
+            System.out.println();
         }
-        
-        System.out.println("Files successfully listed!");
         
 		return 0; //success
 	}
@@ -196,6 +206,15 @@ class FileSystem
         
         file.seek(currentInode.getBlockPtr(blockNum) * 1024);
         file.read(buf, 0 , 1024);
+        
+        System.out.println("Printing contents from block " + currentInode.getBlockPtr(blockNum) + "...");
+        
+        try{
+            System.out.println(new String(buf, "UTF-16"));
+        }catch(UnsupportedEncodingException e){
+            System.err.println("System doesn't support UTF-16. Now Terminating.");
+            System.exit(1);
+        }
         
         System.out.println("File successfully read!");
         

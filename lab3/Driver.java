@@ -1,5 +1,6 @@
 import java.util.Scanner;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 class Driver{
 	public static void main(String[] args){
@@ -30,16 +31,15 @@ class Driver{
 		}
 	}
 	
-	/**
-	 * This method does some stuff
-	 * @param args some information about this
-	 * @returns some info on what this returns
-	 */
 	public static boolean validArgsForUpdatingCurrentFileSystem(String[] args){
 		if(args.length != 1)
 			return false;
 			
-		// we can assume args[0] is a valid string
+        if(args[0].equals(""))
+            return false;
+        
+        if(validArgsForWrite(args) || validArgsForRead(args) || validArgsForList(args) || validArgsForDelete(args) || validArgsForDelete(args) || validArgsForCreate(args))
+            return false;
 		
 		return true;
 	}
@@ -78,7 +78,7 @@ class Driver{
 			return;
 		
         try{
-            if(fs.create(fileNameToCharArray(fileName), size) != 0)
+            if(fs.create(fileNameToCharArray(fileName), size + 1) != 0)
                 System.err.println("Error creating file");
         }catch(IOException e){
             System.err.println("Error creating file");
@@ -187,11 +187,23 @@ class Driver{
 	public static void write(FileSystem fs, String fileName, int blockNum){
 		if(!checkFileName(fileName) || !checkSize(blockNum))
 			return;
-		
-		// dummy data
-		byte[] buffer = new byte[1024];
+	
+        // generate dummy byte array
+        String dummyString = fileName + "_" + blockNum + "_dummydata__";
+        for(int i = 0; i < 10; i++)
+            dummyString = dummyString + dummyString;
+        byte[] dummyDataBuffer = null;
+        try{
+            dummyDataBuffer = dummyString.getBytes("UTF-16");
+        }catch(UnsupportedEncodingException e){
+            System.err.println("System doesn't support UTF-16. Now Terminating.");
+            System.exit(1);
+        }
+        
+        // populate byte array with dummy bytes
+        byte[] buffer = new byte[1024];
 		for(int i = 0; i < 1024; i++){
-			buffer[i] = (byte)(i % 256);
+			buffer[i] = dummyDataBuffer[i];
 		}
 		
         try{
@@ -214,7 +226,7 @@ class Driver{
 	
 	public static boolean checkSize(int size){	
 		if(size < 0 || size > 7){
-			System.out.println("file size must be positive and no greater than 8");
+			System.out.println("file size must be between 0 and 7");
 			return false;
 		}	
 		
