@@ -155,9 +155,6 @@ class Inode{
     public byte[] toBytes(){
         byte[] returnBytes = new byte[56];
         
-        for(int i = 0; i<nameAsBytes.length; i++)
-            System.out.println((int)(nameAsBytes[i]));
-        
         if(nameAsBytes.length == 18) // sometimes nameAsBytes includes the the start-of-line character, so we don't save that
             System.arraycopy(nameAsBytes, 2, returnBytes, 0, 16);
         else
