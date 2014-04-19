@@ -3,6 +3,7 @@ import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 class Inode{
     public static Inode[] getAllUsed(RandomAccessFile file) throws IOException{
@@ -66,13 +67,24 @@ class Inode{
         System.arraycopy(bytes, 20, blockPtrsAsBytes, 0, 32); // copy 21-32 (inclusive) bytes from bytes to blockPtrsAsBytes
         System.arraycopy(bytes, 52, usedAsBytes, 0, 4); // copy 52-56 (inclusive) bytes from bytes to usedAsBytes
         
-        this.name = new String(nameAsBytes).toCharArray();
+        // set the name
+        try{
+            this.name = Driver.fileNameToCharArray(new String(nameAsBytes, "UTF-16"));
+        }catch(UnsupportedEncodingException e){
+            System.err.println("System doesn't support UTF-16. Now Terminating.");
+            System.exit(1);
+        }
+            
+        // set the size
         this.size = ByteBuffer.wrap(sizeAsBytes).getInt();
         
+        // set the blockPtrs
         for(int i = 0; i < size; i++){
-            this.blockPtrs[i] = ByteBuffer.wrap(blockPtrsAsBytes, i * 4, 4).getInt();
+            this.blockPtrs[i] =
+            ByteBuffer.wrap(blockPtrsAsBytes, i * 4, 4).getInt();
         }
         
+        // set the used
         this.used = (ByteBuffer.wrap(usedAsBytes).getInt() != 0);
     }
     
@@ -91,7 +103,8 @@ class Inode{
             byte[] intAsBytes = ByteBuffer.allocate(4).putInt(blockPtrs[index]).array();
             
             for(int j = 0; j < 4; j++){
-                blockPtrsAsBytes[(i * 8) + j] = intAsBytes[j];
+                blockPtrsAsBytes[(i * 4) + j] =
+                    intAsBytes[j];
             }
         }
     }
@@ -102,7 +115,13 @@ class Inode{
     
     public void setFileName(char[] newName){
         this.name = newName;
-        this.nameAsBytes = new String(newName).getBytes();
+        
+        try{
+            this.nameAsBytes = new String(newName).getBytes("UTF-16");
+        }catch(UnsupportedEncodingException e){
+            System.err.println("System doesn't support UTF-16. Now Terminating.");
+            System.exit(1);
+        }
     }
     
     public int getSize(){
@@ -111,6 +130,7 @@ class Inode{
     
     public void setSize(int val){
         this.size = val;
+        
         this.sizeAsBytes = ByteBuffer.allocate(4).putInt(val).array();
     }
     

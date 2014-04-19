@@ -11,7 +11,11 @@ class Driver{
 			String command = in.nextLine();
 			String[] commandArray = command.split("\\s+"); // splits by whitespace. found answer at http://stackoverflow.com/questions/225337/how-do-i-split-a-string-with-any-whitespace-chars-as-delimiters
 			
-			if(validArgsForCreate(commandArray))
+            if(currentFS == null && !validArgsForUpdatingCurrentFileSystem(commandArray))
+                System.err.println("No filesystem selected");
+            else if(validArgsForUpdatingCurrentFileSystem(commandArray))
+                currentFS = getUpdatedFileSystem(currentFS, new FileSystem(commandArray[0].toCharArray()));
+			else if(validArgsForCreate(commandArray))
 				create(currentFS, commandArray[1], Integer.parseInt(commandArray[2]));
 			else if(validArgsForDelete(commandArray))
 				delete(currentFS, commandArray[1]);
@@ -21,11 +25,8 @@ class Driver{
 				read(currentFS, commandArray[1], Integer.parseInt(commandArray[2]));
 			else if(validArgsForWrite(commandArray))
 				write(currentFS, commandArray[1], Integer.parseInt(commandArray[2]));
-			else if(validArgsForUpdatingCurrentFileSystem(commandArray)){
-				currentFS = getUpdatedFileSystem(currentFS, new FileSystem(commandArray[0].toCharArray()));
-			}
 			else
-				System.out.println("Invalid command");
+				System.err.println("Invalid command");
 		}
 	}
 	
@@ -45,7 +46,7 @@ class Driver{
 	
 	public static FileSystem getUpdatedFileSystem(FileSystem oldFS, FileSystem newFS){
 		if(newFS.isValidFileSystem()){
-			System.out.println("Using new file system: " + newFS.toString());
+			System.out.println("Using file system: " + newFS.toString());
 			return newFS;
 		}
 		else{
@@ -77,14 +78,15 @@ class Driver{
 			return;
 		
         try{
-            fs.create(fileNameToCharArray(fileName), size);
+            if(fs.create(fileNameToCharArray(fileName), size) != 0)
+                System.err.println("Error creating file");
         }catch(IOException e){
-            System.err.println("Could not create file");
+            System.err.println("Error creating file");
         }
 	}
 
 	public static boolean validArgsForDelete(String[] args){
-		if(args.length != 3)
+		if(args.length != 2)
 			return false;
 		if(!args[0].equals("D") && !args[0].equals("d"))
 			return false;
@@ -99,9 +101,10 @@ class Driver{
 			return;
 			
         try{
-            fs.delete(fileNameToCharArray(fileName));
+            if(fs.delete(fileNameToCharArray(fileName)) != 0)
+                System.err.println("Error deleting file");
         }catch(IOException e){
-            System.err.println("Could not delete file");
+            System.err.println("Error deleting file");
         }
 	}
 
@@ -116,9 +119,10 @@ class Driver{
 	
 	public static void list(FileSystem fs){
         try{
-            fs.ls();
+            if(fs.ls() != 0)
+                System.err.println("Error listing files");
         }catch(IOException e){
-            System.err.println("Could not list file contents");
+            System.err.println("Error listing files");
         }
 	}
 
@@ -150,9 +154,10 @@ class Driver{
 		byte[] buffer = new byte[1024];
         
         try{
-            fs.read(fileNameToCharArray(fileName), blockNum, buffer);
+            if(fs.read(fileNameToCharArray(fileName), blockNum, buffer) != 0)
+                System.err.println("Error reading file");
         }catch(IOException e){
-            System.err.println("Could not read from file");
+            System.err.println("Error reading file");
         }
         
 		// do something with buffer
@@ -190,9 +195,10 @@ class Driver{
 		}
 		
         try{
-            fs.write(fileNameToCharArray(fileName), blockNum, buffer);
+            if(fs.write(fileNameToCharArray(fileName), blockNum, buffer) != 0)
+                System.err.println("Error writing file");
         }catch(IOException e){
-            System.err.println("Could not write to file");
+            System.err.println("Error writing file");
         }
 	}
 	
@@ -207,7 +213,7 @@ class Driver{
 	}
 	
 	public static boolean checkSize(int size){	
-		if(size < 0 || size > 8){
+		if(size < 0 || size > 7){
 			System.out.println("file size must be positive and no greater than 8");
 			return false;
 		}	
@@ -216,6 +222,14 @@ class Driver{
 	}
 	
 	public static char[] fileNameToCharArray(String fileName){
-		return fileName.toCharArray();
+        char[] fileNameChar = new char[8];
+        for(int i = 0; i < fileName.length(); i++){
+            fileNameChar[i] = fileName.charAt(i);
+        }
+        for(int i = fileName.length(); i < 8; i++){
+            fileNameChar[i] = '\0';
+        }
+        
+		return fileNameChar;
 	}
 }

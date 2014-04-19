@@ -15,9 +15,10 @@ class FileSystem
 		this.diskName = diskName;
         
         try{
+            new RandomAccessFile(new String(diskName), "r").close(); // this will throw FileNotFoundException if the file doesn't exist
             this.file = new RandomAccessFile(new String(diskName), "rws");
-        }catch(FileNotFoundException e){
-            valid = false;
+        }catch(Exception e){
+            this.valid = false;
         }
 	}
 
@@ -33,6 +34,7 @@ class FileSystem
 	 * Allocate space for a new file on disc
 	 */
 	public int create(char[] name, int size) throws IOException{
+        // checks uniqueness of filename
         if(Inode.findInode(name, file) != null){
             System.err.println("File already exists with that name");
             return 1;
@@ -55,18 +57,19 @@ class FileSystem
 			return 1;
 		}
         
+        // iterate through the inodes, find a free inode, populate the inode's used, filename, and size fields
         Inode allocatedInode = null;
         Inode currentInode;
         int currentInodeByteOffset;
         byte[] inodeByteBuffer = new byte[56];
-		for(int currentInodeIndex = 0; currentInodeIndex < 16; currentInodeIndex++){ // File count check
-			currentInodeByteOffset = (128 + (56 * currentInodeIndex));
+		for(int currentInodeIndex = 0; currentInodeIndex < 16; currentInodeIndex++){
+			currentInodeByteOffset = (128 + (56 * currentInodeIndex)); // this is the currentInode's offset
             
             file.seek(currentInodeByteOffset);
 			file.read(inodeByteBuffer);
-            
             currentInode = new Inode(inodeByteBuffer, currentInodeByteOffset);
             
+            // if the inode is not being used
             if(currentInode.isUsed() == false){
                 allocatedInode = currentInode;
                 
@@ -80,6 +83,7 @@ class FileSystem
                 break;
             }
 		}
+        // did we find a free inode?
 		if(allocatedInode == null){
 			System.err.println("Too many files on disk");
 			return 1;
@@ -104,6 +108,8 @@ class FileSystem
         
         file.seek(allocatedInode.getOffset());
         file.write(allocatedInode.toBytes());
+        
+        System.out.println("File successfully created!");
         
 		return 0; //success
 	}
@@ -143,14 +149,17 @@ class FileSystem
                 file.seek(currentInodeByteOffset);
                 file.write(currentInode.toBytes()); // write this freed inode to disk
                 
-                break;
+                file.seek(0);
+                file.write(freeBlockList); // we must update the freeBlockList because more blocks are now free
+                
+                System.out.println("File successfully deleted!");
+                
+                return 0; //success
             }
         }
                           
-        file.seek(0);
-        file.write(freeBlockList); // we must update the freeBlockList because more blocks are now free
-                        
-		return 0; //success
+        System.out.println("Could not find file with that name");
+        return 1;
 	}
 
 	
@@ -166,6 +175,8 @@ class FileSystem
             System.out.println(new String(allUsed[i].getFileName()) + " " + allUsed[i].getSize());
         }
         
+        System.out.println("Files successfully listed!");
+        
 		return 0; //success
 	}
 
@@ -178,9 +189,16 @@ class FileSystem
         
         currentInode = Inode.findInode(name, file);
         
+        if(currentInode == null){
+            System.err.println("Could not find file with that name");
+            return 1;
+        }
+        
         file.seek(currentInode.getBlockPtr(blockNum) * 1024);
         file.read(buf, 0 , 1024);
-                
+        
+        System.out.println("File successfully read!");
+        
 		return 0; //successful
 	}
 
@@ -190,9 +208,16 @@ class FileSystem
         
         currentInode = Inode.findInode(name, file);
 
+        if(currentInode == null){
+            System.err.println("Could not find file with that name");
+            return 1;
+        }
+        
         file.seek(currentInode.getBlockPtr(blockNum) * 1024);
-        file.write(buf, 0, 1024);
+        file.write(buf);
 
+        System.out.println("File successfully written!");
+        
 		return 0; //successful
 	}
 }
