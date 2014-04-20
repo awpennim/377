@@ -119,8 +119,6 @@ class Inode{
         
         try{
             this.nameAsBytes = new String(newName).getBytes("UTF-16");
-            
-            System.out.println(new String(nameAsBytes, "UTF-16"));
         }catch(UnsupportedEncodingException e){
             System.err.println("System doesn't support UTF-16. Now Terminating.");
             System.exit(1);
